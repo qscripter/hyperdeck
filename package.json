@@ -1,0 +1,15 @@
+{
+  "name": "hyperdeck",
+  "version": "1.0.0",
+  "description": "A utility for interacting with a BlackMagic Designs HyperDeck",
+  "main": "app.js",
+  "dependencies": {
+    "lodash": "^3.9.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Quinn Scripter",
+  "license": "ISC"
+}
