@@ -15,7 +15,7 @@ function HyperDeck(ipAddress) {
     port: 9993
   };
 
-  self.connection.on('ready', function(prompt) {
+  self.connection.on('ready', function() {
     self.connection.exec('notify: transport: true', function(response) {
       setInterval(function () {
         self.ping();
@@ -30,6 +30,7 @@ function HyperDeck(ipAddress) {
   });
 
   self.connection.on('data', function(data) {
+    console.log(data);
     self.emit('data', proccessData(data));
   });
 
