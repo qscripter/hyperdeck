@@ -8,16 +8,11 @@ deck.on('ready', function() {
     console.log('ping');
     console.log(response);
   });
-  deck.ping(function (response) {
-    console.log('ping');
+  deck.getTransportInfo(function (response) {
     console.log(response);
   });
-  deck.ping(function (response) {
-    console.log('ping');
-    console.log(response);
-  });
-  deck.ping(function (response) {
-    console.log('ping');
-    console.log(response);
-  });
+});
+
+deck.on('data', function(data) {
+  console.log(data);
 });

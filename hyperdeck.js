@@ -30,8 +30,7 @@ function HyperDeck(ipAddress) {
   });
 
   self.connection.on('data', function(data) {
-    console.log('data');
-    console.log(proccessData(data));
+    self.emit('data', proccessData(data));
   });
 
   self.connection.on('timeout', function() {
