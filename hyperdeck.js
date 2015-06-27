@@ -16,20 +16,21 @@ function HyperDeck(ipAddress) {
   };
 
   self.connection.on('ready', function(prompt) {
-    self.connection.exec('transport info', function(response) {
-      console.log(response);
-    });
     self.connection.exec('notify: transport: true', function(response) {
-      console.log(response);
+      setInterval(function () {
+        self.ping();
+      }, 10000); 
+      self.emit('ready');
     });
-    
   });
 
-  self.connection.on('error', function() {
+  self.connection.on('error', function(error) {
     console.log('error!');
+    console.log(error);
   });
 
   self.connection.on('data', function(data) {
+    console.log('data');
     console.log(proccessData(data));
   });
 
@@ -42,6 +43,8 @@ function HyperDeck(ipAddress) {
     console.log('connection closed');
   });
 
+  
+
 
 
   if (false === (this instanceof HyperDeck)) return new HyperDeck();
@@ -51,12 +54,32 @@ util.inherits(HyperDeck, events.EventEmitter);
 
 HyperDeck.prototype.connect = connect;
 HyperDeck.prototype.destroy = destroy;
+HyperDeck.prototype.ping = ping;
+HyperDeck.prototype.getTransportInfo = getTransportInfo;
 
 
 
 function connect() {
   var self = this;
   self.connection.connect(self.params);
+}
+
+function ping(callback) {
+  var self = this;
+  self.connection.exec('ping', function(response) {
+    if (callback) {
+      return callback(proccessData(response));
+    }
+  });
+}
+
+function getTransportInfo(callback) {
+  var self = this;
+  self.connection.exec('transport info', function(response) {
+    if (callback) {
+      return callback(proccessData(response));
+    }
+  });
 }
 
 function destroy() {

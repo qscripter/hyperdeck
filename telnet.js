@@ -71,14 +71,23 @@ Telnet.prototype.exec = function(cmd, opts, callback) {
     self.echoLines = opts.echoLines || self.echoLines;
   }
 
-  if (this.telnetSocket.writable) {
+  if (this.telnetSocket.writable && self.telnetState === 'sendcmd') {
+    self.telnetState = 'write';
     this.telnetSocket.write(cmd, function() {
       self.telnetState = 'response';
       self.emit('writedone');
 
+      var timeout = setTimeout(function () {
+        self.emit('error', 'timeout');
+        self.telnetState = 'write';
+      }, 5000);
+
       self.once('responseready', function() {
+        self.telnetState = 'sendcmd';
+        clearTimeout(timeout);
         if (callback && self.cmdOutput !== 'undefined') {
-          callback(self.cmdOutput.join('\n'));
+          _.pull(self.cmdOutput, '');
+          callback(self.cmdOutput);
         }
         else if (callback && self.cmdOutput === 'undefined'){
           callback();
@@ -88,6 +97,11 @@ Telnet.prototype.exec = function(cmd, opts, callback) {
         self.stringData = '';
       });
     });
+  } else {
+    // try command again when pipe ready
+    setTimeout(function () {
+      self.exec(cmd, opts, callback);
+    }, 100);
   }
 };
 
@@ -109,21 +123,23 @@ function parseData(chunk, telnetObj) {
     if (negReturn === undefined) return;
     else chunk = negReturn;
   }
+  
 
   if (telnetObj.telnetState === 'start') {
     telnetObj.telnetState = 'sendcmd';
     telnetObj.stringData = '';
     telnetObj.emit('ready', telnetObj.shellPrompt);
-  }
-  else {
+  } else if (telnetObj.telnetState === 'response') {
     var stringData = chunk.toString();
     telnetObj.stringData += stringData;
     promptIndex = stringData.search(telnetObj.shellPrompt);
 
     telnetObj.cmdOutput = telnetObj.stringData.split(telnetObj.irs);
 
+    telnetObj.telnetState = 'responseready';
     telnetObj.emit('responseready');
-    return stringData;
+  } else {
+    return chunk.toString();
   }
 }
 
