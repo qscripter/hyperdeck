@@ -7,6 +7,7 @@ function HyperDeck(ipAddress) {
   var self = this;
 
   self.ipAddress = ipAddress;
+  self.remoteEnabled = false;
   events.EventEmitter.call(this);
   self.connection = new telnet();
 
@@ -16,31 +17,32 @@ function HyperDeck(ipAddress) {
   };
 
   self.connection.on('ready', function() {
+    self.connectionStatus = 'Connected';
     self.connection.exec('notify: transport: true', function(response) {
-      setInterval(function () {
+      self.statusPing = setInterval(function () {
         self.ping();
-      }, 10000); 
+      }, 10000);
       self.emit('ready');
     });
   });
 
   self.connection.on('error', function(error) {
-    console.log('error!');
+    self.connectionStatus = 'Error';
     console.log(error);
   });
 
   self.connection.on('data', function(data) {
-    console.log(data);
-    self.emit('data', proccessData(data));
+    self.emit('data', processData(data));
   });
 
   self.connection.on('timeout', function() {
     console.log('socket timeout!');
     self.connection.end();
+    self.connectionStatus = 'Timed Out';
   });
 
   self.connection.on('close', function() {
-    console.log('connection closed');
+    self.connectionStatus = 'Closed';
   });
 
   
@@ -56,6 +58,8 @@ HyperDeck.prototype.connect = connect;
 HyperDeck.prototype.destroy = destroy;
 HyperDeck.prototype.ping = ping;
 HyperDeck.prototype.getTransportInfo = getTransportInfo;
+HyperDeck.prototype.setRemote = setRemote;
+HyperDeck.prototype.transportCommand = transportCommand;
 
 
 
@@ -68,7 +72,7 @@ function ping(callback) {
   var self = this;
   self.connection.exec('ping', function(response) {
     if (callback) {
-      return callback(proccessData(response));
+      return callback(processData(response));
     }
   });
 }
@@ -77,9 +81,35 @@ function getTransportInfo(callback) {
   var self = this;
   self.connection.exec('transport info', function(response) {
     if (callback) {
-      return callback(proccessData(response));
+      self.transportInfo = processData(response);
+      return callback(self.transportInfo);
     }
   });
+}
+
+function setRemote(remote, callback) {
+  var self = this;
+  self.connection.exec('remote: enable: ' + remote, function (response) {
+    self.remoteEnabled = true;
+    if (callback) {
+      return callback(processData(response));
+    }
+  });
+}
+
+function transportCommand(command, callback) {
+  var self = this;
+  if (self.remoteEnabled) {
+    self.connection.exec(command, function (response) {
+      if (callback) {
+        return callback(processData(response));
+      }
+    });
+  } else {
+    if (callback) {
+      return callback(false);
+    }
+  }
 }
 
 function destroy() {
@@ -87,7 +117,7 @@ function destroy() {
   self.connection.destroy();
 }
 
-function proccessData(data) {
+function processData(data) {
   var command = {};
   command.code = data[0].substr(0,3);
   command.timeStamp = new Date();

@@ -1,6 +1,7 @@
 var hyperdeck = require('./hyperdeck');
 var _ = require('lodash');
 var express = require('express');
+var bodyParser = require('body-parser')
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 
@@ -12,7 +13,9 @@ var hyperdeckSchema = new Schema({
   name:String,
   description:String,
   ipAddress:String,
-  active:Boolean
+  active:Boolean,
+  connectionStatus:String,
+  remoteEnabled:Boolean
 });
 
 var eventSchema = new Schema({
@@ -25,8 +28,7 @@ var eventSchema = new Schema({
 var HyperDeck = mongoose.model('HyperDeck', hyperdeckSchema, 'hyperdecks');
 var Event = mongoose.model('Event', eventSchema, 'events');
 
-var app = express();
-
+// initialize hyperdeck controllers
 HyperDeck.find({active: true}, function (err, doc) {
   _.map(doc, function(deckDoc) {
     var deck = new hyperdeck(deckDoc.ipAddress);
@@ -41,13 +43,57 @@ HyperDeck.find({active: true}, function (err, doc) {
   });
 });
 
+var app = express();
+
+app.use(express.static('app'));
+app.use(bodyParser.json());
+
 app.get('/', function(req, res) {
-  res.send('Hello world');
+  res.sendFile('app/index.html');
 });
 
-app.get('/hyperdecks', function (req, res) {
-  console.log(decks);
-  HyperDeck.find({active: true}, function (err, doc) {
+app.get('/api/hyperdecks', function (req, res) {
+  HyperDeck.find(req.query, function (err, doc) {
+    doc = _.map(doc, function (deckDoc) {
+      if (decks[deckDoc._id]) {
+        deckDoc.connectionStatus = decks[deckDoc._id].connectionStatus;
+        deckDoc.remoteEnabled = decks[deckDoc._id].remoteEnabled;
+        deckDoc.foo = 'bar';
+      }
+      return deckDoc;
+    });
+    res.send(doc);
+  });
+});
+
+app.get('/api/hyperdecks/:id/transport-info', function (req, res) {
+  if (decks[req.params.id]) {
+    decks[req.params.id].getTransportInfo(function (info) {
+      res.send(info);
+    });
+  } else {
+    req.send([]);
+  }
+});
+
+app.post('/api/hyperdecks/:id/command', function (req, res) {
+  var deck;
+  if (!decks[req.params.id]) {
+    res.send(false);
+  } else {
+    deck = decks[req.params.id];
+  }
+  if (_.has(req.body, 'remote')) {
+    deck.setRemote(req.body.remote);
+  }
+  if (_.has(req.body, 'transportCommand')) {
+    deck.transportCommand(req.body.transportCommand);
+  }
+  res.send('command executed');
+});
+
+app.get('/api/events', function (req, res) {
+  Event.find(req.query, function (err, doc) {
     res.send(doc);
   });
 });

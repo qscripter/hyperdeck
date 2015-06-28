@@ -78,9 +78,9 @@ Telnet.prototype.exec = function(cmd, opts, callback) {
       self.emit('writedone');
 
       var timeout = setTimeout(function () {
-        self.emit('error', 'timeout');
+        self.emit('timeout');
         self.telnetState = 'write';
-      }, 5000);
+      }, 1000);
 
       self.once('responseready', function() {
         self.telnetState = 'sendcmd';

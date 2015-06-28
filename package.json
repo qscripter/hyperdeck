@@ -4,6 +4,7 @@
   "description": "A utility for interacting with a BlackMagic Designs HyperDeck",
   "main": "app.js",
   "dependencies": {
+    "body-parser": "^1.13.1",
     "lodash": "^3.9.3"
   },
   "devDependencies": {},
