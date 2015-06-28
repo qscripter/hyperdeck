@@ -10,6 +10,7 @@ function HyperDeck(ipAddress) {
   self.remoteEnabled = false;
   events.EventEmitter.call(this);
   self.connection = new telnet();
+  self.connectionStatus = 'Not Connected';
 
   self.params = {
     host: ipAddress,
@@ -58,6 +59,7 @@ HyperDeck.prototype.connect = connect;
 HyperDeck.prototype.destroy = destroy;
 HyperDeck.prototype.ping = ping;
 HyperDeck.prototype.getTransportInfo = getTransportInfo;
+HyperDeck.prototype.getConfiguration = getConfiguration;
 HyperDeck.prototype.setRemote = setRemote;
 HyperDeck.prototype.transportCommand = transportCommand;
 
@@ -79,27 +81,45 @@ function ping(callback) {
 
 function getTransportInfo(callback) {
   var self = this;
-  self.connection.exec('transport info', function(response) {
-    if (callback) {
-      self.transportInfo = processData(response);
-      return callback(self.transportInfo);
-    }
-  });
+  if (self.connectionStatus === 'Connected')
+  {
+    self.connection.exec('transport info', function(response) {
+      if (callback) {
+        self.transportInfo = processData(response);
+        return callback(self.transportInfo);
+      }
+    });
+  }
+}
+
+function getConfiguration(callback) {
+  var self = this;
+  if (self.connectionStatus === 'Connected')
+  {
+    self.connection.exec('configuration', function(response) {
+      if (callback) {
+        self.configurationInfo = processData(response);
+        return callback(self.configurationInfo);
+      }
+    });
+  }
 }
 
 function setRemote(remote, callback) {
   var self = this;
-  self.connection.exec('remote: enable: ' + remote, function (response) {
-    self.remoteEnabled = true;
-    if (callback) {
-      return callback(processData(response));
-    }
-  });
+  if (self.connectionStatus === 'Connected') {
+    self.connection.exec('remote: enable: ' + remote, function (response) {
+      self.remoteEnabled = true;
+      if (callback) {
+        return callback(processData(response));
+      }
+    });
+  }
 }
 
 function transportCommand(command, callback) {
   var self = this;
-  if (self.remoteEnabled) {
+  if (self.remoteEnabled && self.connectionStatus === 'Connected') {
     self.connection.exec(command, function (response) {
       if (callback) {
         return callback(processData(response));
