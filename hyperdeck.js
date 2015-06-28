@@ -8,6 +8,7 @@ function HyperDeck(ipAddress) {
 
   self.ipAddress = ipAddress;
   self.remoteEnabled = false;
+  self.slotInfo = {};
   events.EventEmitter.call(this);
   self.connection = new telnet();
   self.connectionStatus = 'Not Connected';
@@ -19,6 +20,8 @@ function HyperDeck(ipAddress) {
 
   self.connection.on('ready', function() {
     self.connectionStatus = 'Connected';
+    self.connection.exec('notify: configuration: true');
+    self.connection.exec('notify: slot: true');
     self.connection.exec('notify: transport: true', function(response) {
       self.statusPing = setInterval(function () {
         self.ping();
@@ -38,7 +41,7 @@ function HyperDeck(ipAddress) {
 
   self.connection.on('timeout', function() {
     console.log('socket timeout!');
-    self.connection.end();
+    self.connection.destroy();
     self.connectionStatus = 'Timed Out';
   });
 
@@ -60,6 +63,7 @@ HyperDeck.prototype.destroy = destroy;
 HyperDeck.prototype.ping = ping;
 HyperDeck.prototype.getTransportInfo = getTransportInfo;
 HyperDeck.prototype.getConfiguration = getConfiguration;
+HyperDeck.prototype.getSlotInfo = getSlotInfo;
 HyperDeck.prototype.setRemote = setRemote;
 HyperDeck.prototype.transportCommand = transportCommand;
 
@@ -100,6 +104,19 @@ function getConfiguration(callback) {
       if (callback) {
         self.configurationInfo = processData(response);
         return callback(self.configurationInfo);
+      }
+    });
+  }
+}
+
+function getSlotInfo(slot, callback) {
+  var self = this;
+  if (self.connectionStatus === 'Connected')
+  {
+    self.connection.exec('slot info: slot id: ' + slot, function(response) {
+      if (callback) {
+        self.slotInfo[slot] = processData(response);
+        return callback(self.slotInfo[slot]);
       }
     });
   }
