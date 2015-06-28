@@ -41,6 +41,7 @@ function HyperDeck(ipAddress) {
 
   self.connection.on('timeout', function() {
     console.log('socket timeout!');
+    self.emit('timeout');
     self.connection.destroy();
     self.connectionStatus = 'Timed Out';
   });
