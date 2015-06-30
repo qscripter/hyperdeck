@@ -5,6 +5,7 @@
   "main": "app.js",
   "dependencies": {
     "body-parser": "^1.13.1",
+    "express": "^4.13.0",
     "lodash": "^3.9.3",
     "ws": "^0.7.2"
   },
