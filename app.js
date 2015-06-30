@@ -55,6 +55,7 @@ decks[deckDoc._id] = deck;
 
 deck.on('data', function (data) {
   events.unshift(data);
+  events = events.splice(0,50);
   wss.broadcast({
     _id: deckDoc._id,
     event: data
@@ -134,7 +135,7 @@ app.post('/api/hyperdecks/:id/command', function (req, res) {
 });
 
 app.get('/api/events', function (req, res) {
-  res.send(events.slice(0,50));
+  res.send(events);
 });
 
 app.listen(3000);
