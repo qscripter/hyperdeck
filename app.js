@@ -2,34 +2,32 @@ var hyperdeck = require('./hyperdeck');
 var _ = require('lodash');
 var express = require('express');
 var bodyParser = require('body-parser');
-var mongoose = require('mongoose');
-var Schema = mongoose.Schema;
+// var mongoose = require('mongoose');
+// var Schema = mongoose.Schema;
 
 var WebSocketServer = require('ws').Server;
 var wss = new WebSocketServer({ port: 8888 });
 
-mongoose.connect('mongodb://localhost/test');
+//mongoose.connect('mongodb://localhost/test');
 
-var decks = {};
+// var hyperdeckSchema = new Schema({
+//   name:String,
+//   description:String,
+//   ipAddress:String,
+//   active:Boolean,
+//   connectionStatus:String,
+//   remoteEnabled:Boolean
+// });
 
-var hyperdeckSchema = new Schema({
-  name:String,
-  description:String,
-  ipAddress:String,
-  active:Boolean,
-  connectionStatus:String,
-  remoteEnabled:Boolean
-});
+// var eventSchema = new Schema({
+//   hyperDeck:Schema.Types.ObjectId,
+//   timeStamp:Date,
+//   message:String,
+//   params: {}
+// });
 
-var eventSchema = new Schema({
-  hyperDeck:Schema.Types.ObjectId,
-  timeStamp:Date,
-  message:String,
-  params: {}
-});
-
-var HyperDeck = mongoose.model('HyperDeck', hyperdeckSchema, 'hyperdecks');
-var Event = mongoose.model('Event', eventSchema, 'events');
+// var HyperDeck = mongoose.model('HyperDeck', hyperdeckSchema, 'hyperdecks');
+// var Event = mongoose.model('Event', eventSchema, 'events');
 
 wss.broadcast = function broadcast(data) {
   wss.clients.forEach(function each(client) {
@@ -37,34 +35,43 @@ wss.broadcast = function broadcast(data) {
   });
 };
 
-// initialize hyperdeck controllers
-HyperDeck.find({active: true}, function (err, doc) {
-  _.map(doc, function(deckDoc) {
-    var deck = new hyperdeck(deckDoc.ipAddress);
-    decks[deckDoc._id] = deck;
+var deckDoc = {
+  _id: 123456,
+  name: 'Prospect House',
+  description: 'July 4th Prospect House Record Deck',
+  ipAddress: '192.168.1.58',
+  active: true,
+  connectionStatus: '',
+  remoteEnabled: false
+};
 
-    deck.on('data', function (data) {
-      var dataEvent = new Event(data);
-      dataEvent.hyperDeck = deckDoc._id;
-      dataEvent.save();
-      wss.broadcast({
-        _id: deckDoc._id,
-        event: dataEvent
-      });
-    });
+var events = [];
 
-    deck.on('ready', function() {
-      wss.broadcast({
-        _id: deckDoc._id,
-        connectionStatus: 'Connected'
-      });
-    });
-    deck.on('timeout', function() {
-      wss.broadcast({
-        _id: deckDoc._id,
-        connectionStatus: 'Timed Out'
-      });
-    });
+// initialize hyperdeck controller
+var deck = new hyperdeck(deckDoc.ipAddress);
+var decks = {};
+
+decks[deckDoc._id] = deck;
+
+deck.on('data', function (data) {
+  events.unshift(data);
+  wss.broadcast({
+    _id: deckDoc._id,
+    event: data
+  });
+});
+
+deck.on('ready', function() {
+  wss.broadcast({
+    _id: deckDoc._id,
+    connectionStatus: 'Connected'
+  });
+});
+
+deck.on('timeout', function() {
+  wss.broadcast({
+    _id: deckDoc._id,
+    connectionStatus: 'Timed Out'
   });
 });
 
@@ -78,10 +85,9 @@ app.get('/', function(req, res) {
 });
 
 app.get('/api/hyperdecks', function (req, res) {
-  HyperDeck.find(req.query, function (err, doc) {
-    doc = _.map(doc, annotateHyperdeck);
-    res.send(doc);
-  });
+  var doc = [deckDoc];
+  doc = _.map(doc, annotateHyperdeck);
+  res.send(doc);
 });
 
 app.get('/api/hyperdecks/:id/transport-info', function (req, res) {
@@ -90,7 +96,7 @@ app.get('/api/hyperdecks/:id/transport-info', function (req, res) {
       res.send(info);
     });
   } else {
-    req.send([]);
+    res.send([]);
   }
 });
 
@@ -115,12 +121,6 @@ app.get('/api/hyperdecks/:id/slot/:slot', function (req, res) {
 });
 
 app.post('/api/hyperdecks/:id/command', function (req, res) {
-  var deck;
-  if (!decks[req.params.id]) {
-    res.send(false);
-  } else {
-    deck = decks[req.params.id];
-  }
   if (_.has(req.body, 'remote')) {
     deck.setRemote(req.body.remote);
   }
@@ -134,23 +134,14 @@ app.post('/api/hyperdecks/:id/command', function (req, res) {
 });
 
 app.get('/api/events', function (req, res) {
-  Event.find({
-    hyperDeck: req.query.hyperDeck
-  })
-  .sort({timeStamp: -1})
-  .limit(50)
-  .exec(function (err, doc) {
-    res.send(doc);
-  });
+  res.send(events.slice(0,50));
 });
 
 app.listen(3000);
 
 
 function annotateHyperdeck(deckDoc) {
-  if (decks[deckDoc._id]) {
-    deckDoc.connectionStatus = decks[deckDoc._id].connectionStatus;
-    deckDoc.remoteEnabled = decks[deckDoc._id].remoteEnabled;
-  }
+  deckDoc.connectionStatus = deck.connectionStatus;
+  deckDoc.remoteEnabled = deck.remoteEnabled;
   return deckDoc;
 }
